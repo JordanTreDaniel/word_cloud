@@ -497,7 +497,8 @@ class WordCloud(object):
             if random_state.random() < self.prefer_horizontal:
                 orientation = None
             else:
-                orientation = Image.ROTATE_90
+                # Multiline text can't be rotated (PIL limitation)
+                orientation = None if "\n" in word else Image.ROTATE_90
             tried_other_orientation = False
             while True:
                 if font_size < self.min_font_size:
@@ -509,7 +510,11 @@ class WordCloud(object):
                 transposed_font = ImageFont.TransposedFont(
                     font, orientation=orientation)
                 # get size of resulting text
-                box_size = draw.textbbox((0, 0), word, font=transposed_font, anchor="lt")
+                # NOTE: anchor="lt" doesn't work with multiline (\n) text
+                if "\n" in word:
+                    box_size = draw.textbbox((0, 0), word, font=transposed_font)
+                else:
+                    box_size = draw.textbbox((0, 0), word, font=transposed_font, anchor="lt")
                 # find possible places using integral image:
                 result = occupancy.sample_position(box_size[3] + self.margin,
                                                    box_size[2] + self.margin,
@@ -519,7 +524,7 @@ class WordCloud(object):
                     break
                 # if we didn't find a place, make font smaller
                 # but first try to rotate!
-                if not tried_other_orientation and self.prefer_horizontal < 1:
+                if not tried_other_orientation and self.prefer_horizontal < 1 and "\n" not in word:
                     orientation = (Image.ROTATE_90 if orientation is None else
                                    Image.ROTATE_90)
                     tried_other_orientation = True
